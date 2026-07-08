@@ -80,7 +80,7 @@ flowchart LR
 
     subgraph EDGE["☁️ Hosting / Edge"]
         VERCEL["Vercel<br/><b>VibeNet-frontend</b>"]
-        EC2["AWS EC2 (Docker)<br/><b>VibeNet-backend</b><br/>REST + WebSocket Hub"]
+        EC2["AWS EC2 · nginx + systemd<br/><b>VibeNet-backend</b><br/>REST + WebSocket Hub"]
     end
 
     subgraph DATA["🗄 Dual-Database State"]
@@ -101,6 +101,81 @@ flowchart LR
 
 > [!IMPORTANT]
 > The backend is intentionally **content-blind**. It routes and stores only ciphertext and cryptographic metadata (`nonce`). Plain-text messages are never stored, logged, or processed server-side.
+
+### Diagram C — Live Production Deployment (AWS EC2 Free Tier)
+
+This is the **actual deployed topology** of the Go backend: a free DuckDNS subdomain resolves to the EC2 public IP, where **nginx** terminates TLS (Let's Encrypt) on `:443` and reverse-proxies to the always-on **systemd**-managed Go binary listening on `localhost:8080`. The backend reaches PostgreSQL and DynamoDB over the private VPC network.
+
+```mermaid
+flowchart LR
+    subgraph NET["🌐 Public Internet"]
+        USER["Client / Browser"]
+        DUCK["DuckDNS<br/><i>vibenet-api.duckdns.org</i><br/>A record → EC2 IP"]
+    end
+
+    subgraph EC2["🖥 AWS EC2 · t3.micro · Ubuntu 24.04"]
+        direction TB
+        SG{{"Security Group<br/>SSH 22 → My IP<br/>HTTP 80 · HTTPS 443 → public"}}
+        NGINX["nginx<br/>TLS termination :443<br/>Let's Encrypt / certbot<br/>WebSocket upgrade"]
+        SVC["systemd: vibenet.service<br/><b>Go binary</b> :8080<br/><i>always-on · auto-restart</i>"]
+        ENV[".env<br/><i>secrets · config</i>"]
+    end
+
+    subgraph AWS["🗄 AWS Managed Data (private VPC)"]
+        RDS[("PostgreSQL — RDS<br/>SG-to-SG inbound")]
+        DDB[("DynamoDB<br/>encrypted messages")]
+    end
+
+    USER -->|"resolve DNS"| DUCK
+    DUCK -->|"HTTPS · WSS"| SG
+    SG --> NGINX
+    NGINX -->|"proxy_pass · localhost:8080"| SVC
+    ENV -.->|"EnvironmentFile"| SVC
+    SVC -->|"5432 · metadata"| RDS
+    SVC -->|"IAM · ciphertext"| DDB
+
+    style NET fill:#1e1b2e,stroke:#6E56CF,color:#fff
+    style EC2 fill:#0f2b33,stroke:#00ADD8,color:#fff
+    style AWS fill:#14233b,stroke:#4169E1,color:#fff
+```
+
+### Deployment Pipeline — What Ships the Backend
+
+The provisioning path below reflects the exact sequence used to take the Go backend from a fresh EC2 instance to a public HTTPS endpoint. The full walkthrough lives in [`backend/docs/DEPLOYMENT.si.md`](backend/docs/DEPLOYMENT.si.md) (Sinhala) and [`backend/docs/DEPLOYMENT.md`](backend/docs/DEPLOYMENT.md) (English).
+
+```mermaid
+flowchart LR
+    S1["1 · Launch EC2<br/>t3.micro · Ubuntu"]
+    S2["2 · Security Group<br/>SSH · 80 · 443"]
+    S3["3 · SSH in<br/>+ Go build<br/><i>2G swap for OOM</i>"]
+    S4["4 · .env<br/>prod secrets"]
+    S5["5 · RDS SG-to-SG<br/>connectivity"]
+    S6["6 · systemd<br/>always-on"]
+    S7["7 · DuckDNS<br/>+ nginx + certbot<br/>HTTPS 🔒"]
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
+
+    style S1 fill:#20344a,stroke:#61DAFB,color:#fff
+    style S2 fill:#20344a,stroke:#61DAFB,color:#fff
+    style S3 fill:#123038,stroke:#00ADD8,color:#fff
+    style S4 fill:#123038,stroke:#00ADD8,color:#fff
+    style S5 fill:#14233b,stroke:#4169E1,color:#fff
+    style S6 fill:#1e1b2e,stroke:#6E56CF,color:#fff
+    style S7 fill:#123821,stroke:#2EA44F,color:#fff
+```
+
+| # | Stage | What happens | Result |
+|---|-------|--------------|--------|
+| **1** | **EC2 launch** | `t3.micro` (free tier), Ubuntu 24.04, RSA `.pem` key | Always-on host with public IP |
+| **2** | **Security group** | SSH `22` → *My IP*; HTTP `80` + HTTPS `443` → public; `8080` closed after HTTPS | Locked-down inbound surface |
+| **3** | **Build** | `apt` Go + git, `go build ./cmd/api`; **2 GB swap** added to survive the compiler OOM on 1 GB RAM | `vibenet-api` binary |
+| **4** | **Config** | Production `.env` — fresh `JWT_SECRET`, RDS creds, IAM keys, `APP_ENV=production` | Runtime configured |
+| **5** | **RDS connectivity** | Security-group-to-security-group rule (EC2 SG → RDS SG, port `5432`) | DB reachable privately, never public |
+| **6** | **systemd service** | `vibenet.service` — `Restart=always`, `EnvironmentFile=.env`, enabled on boot | 24/7 auto-healing backend |
+| **7** | **Domain + HTTPS** | Free **DuckDNS** subdomain → EC2 IP; **nginx** reverse proxy + **Let's Encrypt** (certbot) with auto-renewal & WebSocket upgrade headers | `https://vibenet-api.duckdns.org` 🔒 |
+
+> [!TIP]
+> Health is verifiable end-to-end at **`https://vibenet-api.duckdns.org/health`** — a single JSON payload reports liveness plus per-dependency status and latency for both PostgreSQL and DynamoDB.
 
 ---
 
