@@ -177,6 +177,34 @@ flowchart LR
 > [!TIP]
 > Health is verifiable end-to-end at **`https://vibenet-api.duckdns.org/health`** — a single JSON payload reports liveness plus per-dependency status and latency for both PostgreSQL and DynamoDB.
 
+### Diagram D — CI/CD Across the Ecosystem
+
+Each submodule owns an **independent delivery pipeline** — a push to one never blocks or contaminates the other. The frontend deploys through Vercel's native Git integration; the backend runs GitHub Actions that gate on build/test, then SSH-deploy to the EC2 host only when CI is green.
+
+```mermaid
+flowchart LR
+    subgraph FE_FLOW["🌐 VibeNet-frontend"]
+        FE_PUSH["git push"] --> VERCEL_CI["Vercel Build<br/>npm run build"]
+        VERCEL_CI --> VERCEL_CDN(["Vercel Edge CDN<br/><i>static SPA</i>"])
+    end
+
+    subgraph BE_FLOW["⚙️ VibeNet-backend"]
+        BE_PUSH["git push"] --> GHA_CI["GitHub Actions · ci.yml<br/>gofmt · vet · build · test"]
+        GHA_CI -->|"on success"| GHA_CD["deploy.yml<br/>SSH → pull → build → restart"]
+        GHA_CD --> EC2_LIVE(["AWS EC2 · systemd<br/><i>https://vibenet-api.duckdns.org</i>"])
+        GHA_CI -.->|"on failure"| BLOCK["❌ deploy skipped"]
+    end
+
+    style FE_FLOW fill:#1e1b2e,stroke:#61DAFB,color:#fff
+    style BE_FLOW fill:#0f2b33,stroke:#00ADD8,color:#fff
+    style VERCEL_CDN fill:#14233b,stroke:#4169E1,color:#fff
+    style EC2_LIVE fill:#123821,stroke:#2EA44F,color:#fff
+    style BLOCK fill:#3a1620,stroke:#e5484d,color:#fff
+```
+
+> [!NOTE]
+> Backend pipeline details — workflows, secrets, and the SSH-delivery gate — live in [`backend/README.md`](backend/README.md#cicd-pipeline).
+
 ---
 
 ## 🤔 Why Multi-Repo + Submodules?
