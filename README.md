@@ -190,8 +190,9 @@ flowchart LR
 
     subgraph BE_FLOW["⚙️ VibeNet-backend"]
         BE_PUSH["git push"] --> GHA_CI["GitHub Actions · ci.yml<br/>gofmt · vet · build · test"]
-        GHA_CI -->|"on success"| GHA_CD["deploy.yml<br/>SSH → pull → build → restart"]
+        GHA_CI -->|"on success"| GHA_CD["deploy.yml · deploy<br/>SSH → pull → build → restart"]
         GHA_CD --> EC2_LIVE(["AWS EC2 · systemd<br/><i>https://vibenet-api.duckdns.org</i>"])
+        GHA_CD -->|"needs: deploy"| GHA_REL["deploy.yml · release<br/>tag + GitHub Release"]
         GHA_CI -.->|"on failure"| BLOCK["❌ deploy skipped"]
     end
 
