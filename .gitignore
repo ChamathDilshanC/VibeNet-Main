@@ -1,1 +1,6 @@
 ARCHITECTURE.md
+CLAUDE.md
+.claude/settings.json
+.graphify-output/
+graphify-out/
+
