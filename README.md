@@ -4,18 +4,19 @@
 
 <p>
   <img alt="Architecture" src="https://img.shields.io/badge/Architecture-Multi--Repo%20Submodules-6E56CF?style=for-the-badge&logo=git&logoColor=white" />
-  <img alt="Frontend" src="https://img.shields.io/badge/Frontend-React.js-61DAFB?style=for-the-badge&logo=react&logoColor=black" />
+  <img alt="Frontend" src="https://img.shields.io/badge/Frontend-Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white" />
   <img alt="Backend" src="https://img.shields.io/badge/Backend-Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" />
 </p>
 <p>
   <img alt="PostgreSQL" src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
   <img alt="DynamoDB" src="https://img.shields.io/badge/Database-Amazon%20DynamoDB-4053D6?style=for-the-badge&logo=amazondynamodb&logoColor=white" />
-  <img alt="Security" src="https://img.shields.io/badge/Security-E2EE%20TweetNaCl.js-2EA44F?style=for-the-badge&logo=letsencrypt&logoColor=white" />
+  <img alt="Security" src="https://img.shields.io/badge/Security-E2EE%20WebCrypto%20ECDH%2FAES--GCM-2EA44F?style=for-the-badge&logo=letsencrypt&logoColor=white" />
+  <img alt="Status" src="https://img.shields.io/badge/Status-Live%20in%20Production-2EA44F?style=for-the-badge&logo=vercel&logoColor=white" />
 </p>
 
 **The orchestrator repository for VibeNet — a scalable, WhatsApp-style chat platform with true End-to-End Encryption.**
 
-[Architecture](#-ecosystem-architecture--visualizations) · [Why Submodules?](#-why-multi-repo--submodules) · [Navigation](#-repository-navigation-map) · [Setup](#-local-environment-cloning--setup)
+[Features](#-whats-live-in-production) · [Architecture](#-ecosystem-architecture--visualizations) · [Why Submodules?](#-why-multi-repo--submodules) · [Navigation](#-repository-navigation-map) · [Setup](#-local-environment-cloning--setup)
 
 </div>
 
@@ -25,10 +26,24 @@
 
 **VibeNet-Main** is the **orchestrator repository** that unifies the VibeNet platform into a single, coherent development workspace. It does not host application code directly — instead, it tracks two independent, standalone repositories as **Git Submodules** and centralizes the shared architecture documentation and cloud provisioning guides.
 
-VibeNet itself is a real-time chat application where the server acts strictly as a **blind router**: it authenticates users, relays opaque ciphertext, and stores encrypted payloads — but **never decrypts, inspects, or logs plain-text messages**. Encryption and decryption happen entirely on the client using **TweetNaCl.js**.
+VibeNet itself is a real-time chat application where the server acts strictly as a **blind router**: it authenticates users, relays opaque ciphertext, and stores encrypted payloads — but **never decrypts, inspects, or logs plain-text messages**. Encryption and decryption happen entirely on the client using the browser's native **Web Crypto API** — ECDH (P-256) key agreement plus AES-256-GCM for messages, group keys, and file attachments alike.
 
 > [!NOTE]
 > This repository is the *entry point* for the ecosystem. Clone it recursively (see [Setup](#-local-environment-cloning--setup)) to pull the frontend and backend in one unified workspace.
+
+Both submodules are deployed and live: the frontend on **Vercel** at [vibe-net-frontend.vercel.app](https://vibe-net-frontend.vercel.app), the backend on **AWS EC2** at `https://vibenet-api.duckdns.org`.
+
+---
+
+## ✨ What's Live in Production
+
+| Area | Capabilities |
+|------|--------------|
+| **Messaging** | 1:1 DMs and group chats, real-time delivery over WebSocket, offline catch-up via REST history, reply-to-message, forward, delete-for-me/delete-for-everyone sync, typing indicators, WhatsApp-style delivery ticks (sent/delivered/read), per-device unread badges |
+| **Groups** | Create/rename/re-photo groups, owner & admin roles, invite/accept/decline flow, add/remove members, promote/demote, leave-with-ownership-handoff — every group message encrypted under one AES-256-GCM key wrapped individually per member |
+| **Rich content** | Encrypted image/file attachments (client-encrypted, S3 presigned upload/download), polls with live vote tallying, calendar events, shared contact cards, emoji picker |
+| **Identity & security** | Email/password + Google OAuth 2.0 sign-in, per-account ECDH keypair generated client-side, anti-spam rotating 4-digit PIN gating strangers' first DM, avatar upload, account deactivation & deletion |
+| **Presence** | Online/last-seen status, live connection-state indicator with auto-reconnect, dark/light theming |
 
 ---
 
@@ -54,7 +69,7 @@ flowchart TB
         end
     end
 
-    FE_REPO[("🌐 VibeNet-frontend<br/>Standalone GitHub Repo<br/>React.js SPA")]
+    FE_REPO[("🌐 VibeNet-frontend<br/>Standalone GitHub Repo<br/>Next.js App")]
     BE_REPO[("⚙️ VibeNet-backend<br/>Standalone GitHub Repo<br/>Go API + WebSocket Hub")]
 
     GM -.->|"declares"| FE_PTR
@@ -75,7 +90,7 @@ This diagram maps the deployed runtime: the browser talks to a Vercel-hosted fro
 ```mermaid
 flowchart LR
     subgraph CLIENT["🧑‍💻 Client Layer"]
-        BROWSER["Browser<br/>React SPA + TweetNaCl.js<br/><i>E2EE happens here</i>"]
+        BROWSER["Browser<br/>Next.js client + Web Crypto<br/><i>E2EE happens here</i>"]
     end
 
     subgraph EDGE["☁️ Hosting / Edge"]
@@ -206,6 +221,37 @@ flowchart LR
 > [!NOTE]
 > Backend pipeline details — workflows, secrets, and the SSH-delivery gate — live in [`backend/README.md`](backend/README.md#cicd-pipeline).
 
+### Diagram E — E2EE Key Architecture (DMs vs. Groups)
+
+Every account generates an ECDH (P-256) keypair **in the browser** at registration — the private key never leaves the device (stored locally as a JWK), and only the public key is uploaded. DMs and groups then derive their message-encryption key differently, but both keep the server blind to the actual key material.
+
+```mermaid
+flowchart TB
+    subgraph DM["1:1 Chat — Pairwise ECDH"]
+        direction TB
+        A_PRIV["Alice — private key<br/><i>never leaves device</i>"]
+        B_PUB["Bob — public key<br/><i>fetched from server</i>"]
+        A_PRIV & B_PUB --> DERIVE["ECDH derive<br/>→ shared AES-256-GCM key"]
+        DERIVE --> DM_ENC["Encrypts/decrypts every<br/>message in this DM"]
+    end
+
+    subgraph GRP["Group Chat — Wrapped Group Key"]
+        direction TB
+        GEN["Creator generates<br/>random AES-256-GCM group key"]
+        WRAP["Wrap group key for each member:<br/>encrypt it under the pairwise<br/>ECDH key shared with that member"]
+        STORE[("Server stores only<br/>wrapped_key + key_nonce<br/>per member — never the raw key")]
+        UNWRAP["Each member's client<br/>re-derives the same pairwise key<br/>and unwraps locally"]
+        GEN --> WRAP --> STORE --> UNWRAP
+    end
+
+    style DM fill:#1e1b2e,stroke:#6E56CF,color:#fff
+    style GRP fill:#0f2b33,stroke:#00ADD8,color:#fff
+    style STORE fill:#3a1620,stroke:#e5484d,color:#fff
+```
+
+> [!IMPORTANT]
+> The server (PostgreSQL) only ever persists `wrapped_key` + `key_nonce` per group member — ciphertext of the group key, not the key itself — so it can route and store group messages without ever being able to decrypt them. File attachments follow the same pattern one level deeper: each file gets its own one-off AES-256-GCM key, which travels *inside* the already-encrypted message envelope (protected by the DM or group key above) while only the encrypted file bytes go to S3.
+
 ---
 
 ## 🤔 Why Multi-Repo + Submodules?
@@ -241,7 +287,7 @@ VibeNet-Main/
 | Path | Type | Responsibility |
 |------|------|----------------|
 | **`/backend`** | Git Submodule | Go core — REST APIs, JWT + Google OAuth, WebSocket Hub, and the dual PostgreSQL / DynamoDB persistence handlers. |
-| **`/frontend`** | Git Submodule | React single-page application — E2EE key generation & management (TweetNaCl.js), real-time chat UI, and Tailwind CSS layout. |
+| **`/frontend`** | Git Submodule | Next.js application — E2EE key generation & management (Web Crypto: ECDH + AES-256-GCM), real-time chat UI, and Tailwind CSS layout. |
 | **`AWS_SETUP_GUIDE.md`** | Document | Beginner-friendly, step-by-step provisioning for JWT, Google OAuth, AWS RDS (PostgreSQL), DynamoDB, and IAM credentials. |
 | **`ARCHITECTURE.md`** | Document | The system blueprint: dual-database strategy, E2EE message flow, and anti-spam design. |
 

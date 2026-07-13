@@ -2,5 +2,8 @@ ARCHITECTURE.md
 CLAUDE.md
 .claude/settings.json
 .graphify-output/
-graphify-out/
+graphify-out/*
+!graphify-out/graph.html
+node_modules/
+.next/
 
