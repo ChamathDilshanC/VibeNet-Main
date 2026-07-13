@@ -1,0 +1,438 @@
+/*
+ * Global stylesheet for VibeNet.
+ *
+ * Import order matters:
+ *   1. Tailwind CSS  — utility layer used by the Next.js app shell.
+ *   2. Astryx reset  — normalizes browser defaults for design-system components.
+ *   3. Astryx core   — component styles for @astryxdesign/core.
+ *   4. Neutral theme — design tokens (color, spacing, radius, typography) exposed
+ *                      as CSS custom properties under [data-astryx-theme="neutral"].
+ *
+ * The `data-astryx-theme="neutral"` attribute is applied on <html> (see layout.tsx),
+ * which activates every token consumed by the Astryx components in the app.
+ */
+/*
+ * Cascade-layer order. This MUST come before the imports — the first @layer statement
+ * fixes the order, and layer order beats specificity.
+ *
+ * Both stylesheets ship layers of their own (Tailwind: theme/base/components/utilities;
+ * Astryx: reset/astryx-base/astryx-theme). Left implicit, Astryx's layers register last
+ * (it's imported second) and therefore win — and its reset does
+ * `:where(input, button, …) { padding: 0; background-color: transparent; border-width: 0 }`.
+ * That silently stripped the border, fill and padding off every Tailwind-styled <input>
+ * in the app, however specific the utility.
+ *
+ * The order below fixes that from both sides:
+ *   - Tailwind's preflight (`base`) sits BEFORE Astryx, so the design system's own
+ *     component styles still override it and Astryx components render as intended.
+ *   - Tailwind's `components`/`utilities` sit AFTER, so utility classes win on the
+ *     elements we style ourselves.
+ */
+@layer theme, base, reset, astryx-base, astryx-theme, components, utilities;
+
+@import "tailwindcss";
+@import "@astryxdesign/core/reset.css";
+@import "@astryxdesign/core/astryx.css";
+@import "@astryxdesign/theme-neutral/theme.css";
+
+/*
+ * Dark mode, in two halves.
+ *
+ * 1. Tailwind v4 has no JS config and no `darkMode: 'class'` option — the variant is
+ *    declared here instead. This points `dark:` at the .dark class that next-themes
+ *    writes onto <html>.
+ *
+ * 2. Astryx's tokens are declared with CSS light-dark() — e.g.
+ *    `--color-text-primary: light-dark(#171717, #fafafa)` — so they already hold both
+ *    values and resolve against the inherited `color-scheme`. Flipping color-scheme is
+ *    therefore all it takes to turn the ENTIRE design system dark: SideNav, TextInput,
+ *    Card, Switch, List and the rest follow with no per-component overrides. It also
+ *    fixes native chrome (scrollbars, form controls, autofill) for free.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
+/* Let the app shell fill the viewport so the landing page can center itself. */
+html,
+body {
+  min-height: 100%;
+  /* The app never scrolls horizontally as a whole — wide content (tables, the
+   * chat, the resize handle) scrolls inside its own container. `clip` removes the
+   * stray page-level horizontal scrollbar without establishing a scroll
+   * container, so sticky positioning inside the sidebar keeps working. */
+  overflow-x: clip;
+}
+
+/* Widen the collapsed side-nav rail. The design system collapses it to
+ * --spacing-12 (48px), which is cramped for the account icons; give it a bit
+ * more room. The collapsed nav carries no inline width (the resizable handle,
+ * and its inline `width`, only render while expanded), so this rule targets the
+ * collapsed state only and leaves the resizable expanded width untouched. */
+.vibe-sidenav:not([style*="width"]) {
+  width: 72px !important;
+}
+
+/*
+ * Sidebar polish:
+ * - Animate the collapse/expand between the expanded inline width and the 72px rail.
+ *   The :active guard turns the animation off while the mouse is held down inside the
+ *   nav — which is exactly the resize-handle drag — so dragging tracks the cursor
+ *   instead of lagging 250ms behind it.
+ * - overflow-x hidden + nowrap: mid-animation the labels are wider than the shrinking
+ *   rail; without this they wrap and flash a horizontal scrollbar every toggle.
+ * - Separation from the content pane is a box-shadow, NOT margin: the nav sits inside
+ *   an Astryx layout panel with overflow-x auto, and any margin makes the panel's
+ *   scrollWidth exceed its clientWidth — which paints a permanent horizontal scrollbar
+ *   in browsers with classic (non-overlay) scrollbars. Shadows take no layout space,
+ *   so they can't overflow anything.
+ */
+.vibe-sidenav {
+  transition: width 0.25s ease-in-out;
+  overflow-x: hidden;
+  white-space: nowrap;
+  box-shadow: 2px 0 12px rgba(15, 23, 42, 0.06);
+}
+.dark .vibe-sidenav {
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.4);
+}
+.vibe-sidenav:active {
+  transition: none;
+}
+/* The layout panel hosting the side nav has overflow-x:auto, and the 3px resize
+ * handle beside the nav always overflows it by that much — painting a permanent
+ * horizontal scrollbar under the sidebar in browsers with classic (non-overlay)
+ * scrollbars. Scoped with :has so no other layout panel changes behaviour. */
+.astryx-layout-panel:has(> * > .vibe-sidenav),
+.astryx-layout-panel:has(.vibe-sidenav) {
+  overflow-x: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vibe-sidenav {
+    transition: none;
+  }
+}
+
+/*
+ * Brand accents layered on top of the neutral theme.
+ *
+ * Palette extracted from the VibeNet logo — a vivid green -> cyan -> blue
+ * gradient. The rules below are intentionally *unlayered*: unlayered CSS wins
+ * over the design system's @layer styles, so we can tint the layout and CTAs
+ * without ejecting or rebuilding the theme.
+ */
+:root {
+  --vibe-green: #7ed321; /* vivid lime green from the logo mark */
+  --vibe-cyan: #22c9e6; /* cyan midpoint bridging green and blue */
+  --vibe-blue: #38b5ff; /* sky blue from the logo mark */
+  --vibe-gradient: linear-gradient(
+    135deg,
+    var(--vibe-green) 0%,
+    var(--vibe-cyan) 50%,
+    var(--vibe-blue) 100%
+  );
+}
+
+/*
+ * Ambient brand glow. Light mode is deliberately restrained — the old tints were
+ * strong enough to read as a grey wash over what should be crisp white, so they're
+ * dialled back and sit on pure #ffffff. Dark mode keeps the same three lights at lower
+ * alpha over a deep slate.
+ */
+body {
+  background:
+    radial-gradient(1100px 620px at 10% -8%, rgba(56, 181, 255, 0.07), transparent 60%),
+    radial-gradient(1000px 680px at 110% 8%, rgba(126, 211, 33, 0.05), transparent 55%),
+    radial-gradient(900px 640px at 55% 118%, rgba(56, 181, 255, 0.05), transparent 60%),
+    #ffffff;
+  background-attachment: fixed;
+}
+
+.dark body {
+  background:
+    radial-gradient(1100px 620px at 10% -8%, rgba(56, 181, 255, 0.10), transparent 60%),
+    radial-gradient(1000px 680px at 110% 8%, rgba(126, 211, 33, 0.06), transparent 55%),
+    radial-gradient(900px 640px at 55% 118%, rgba(56, 181, 255, 0.07), transparent 60%),
+    #030712; /* gray-950 */
+  background-attachment: fixed;
+}
+
+/* Let the ambient background show through the Astryx layout surface. */
+.astryx-layout,
+.astryx-layout-content {
+  background: transparent;
+}
+
+/*
+ * Smooth cross-fade on theme change for the design-system chrome (app shell, side nav,
+ * cards, inputs, headers). These components paint from Astryx tokens rather than
+ * Tailwind classes, so `dark:` utilities can't reach them — the transition is applied
+ * here instead, matching the duration-300 ease-in-out used on the Tailwind surfaces.
+ *
+ * Scoped to colour properties only: a blanket `transition: all` would also animate
+ * layout and transform, which would make the resizable side-nav handle lag the cursor.
+ */
+.astryx-appshell,
+.astryx-layout,
+.astryx-layout-content,
+.astryx-layout-panel,
+.astryx-sidenav,
+.astryx-card,
+.astryx-input,
+.astryx-toolbar,
+body {
+  transition:
+    background-color 0.3s ease-in-out,
+    border-color 0.3s ease-in-out,
+    color 0.3s ease-in-out;
+}
+
+/* Users who ask for less motion get the instant swap. */
+@media (prefers-reduced-motion: reduce) {
+  .astryx-appshell,
+  .astryx-layout,
+  .astryx-layout-content,
+  .astryx-layout-panel,
+  .astryx-sidenav,
+  .astryx-card,
+  .astryx-input,
+  .astryx-toolbar,
+  body {
+    transition: none;
+  }
+}
+
+/* Brand wordmark in the hero. Size is controlled by Tailwind on the <img>. */
+.vibe-logo {
+  margin: 0;
+  line-height: 0;
+}
+
+/* Coloured eyebrow above the VibeNet wordmark. */
+.vibe-eyebrow {
+  color: #0284c7; /* darker shade of brand blue for readable small text */
+  letter-spacing: 0.16em;
+}
+
+/* Brand gradient applied as text fill — used for subtle stat highlights. */
+.vibe-gradient-text {
+  background: var(--vibe-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Subtle brand ring on the image tiles. */
+.vibe-tile {
+  box-shadow: 0 1px 2px rgba(6, 40, 61, 0.06);
+  outline: 1px solid rgba(56, 181, 255, 0.08);
+  outline-offset: -1px;
+}
+
+/* Register (primary CTA): solid green -> blue gradient fill, white label. */
+.vibe-cta .astryx-button[data-variant="primary"] {
+  background: var(--vibe-gradient);
+  border-color: transparent;
+  color: #ffffff;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(3, 20, 40, 0.28); /* keeps white legible over green */
+  box-shadow: 0 10px 28px rgba(56, 181, 255, 0.30);
+}
+.vibe-cta .astryx-button[data-variant="primary"]:hover {
+  filter: brightness(1.05);
+}
+
+/*
+ * Login (secondary CTA): gradient border over a white fill. The two-layer
+ * background paints white inside the padding box and the brand gradient in the
+ * border box, so the transparent border reveals the gradient.
+ */
+.vibe-cta .astryx-button[data-variant="secondary"] {
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    var(--vibe-gradient) border-box;
+  border: 2px solid transparent;
+  color: #0284c7; /* brand blue label */
+  font-weight: 600;
+}
+.vibe-cta .astryx-button[data-variant="secondary"]:hover {
+  background:
+    linear-gradient(rgba(56, 181, 255, 0.06), rgba(56, 181, 255, 0.06)) padding-box,
+    var(--vibe-gradient) border-box;
+}
+/* The white padding-box fill has to become dark too, or the gradient border frames a
+   white slab on a dark page. */
+.dark .vibe-cta .astryx-button[data-variant="secondary"] {
+  background:
+    linear-gradient(#111827, #111827) padding-box,
+    var(--vibe-gradient) border-box;
+  color: #7dd3fc;
+}
+.dark .vibe-cta .astryx-button[data-variant="secondary"]:hover {
+  background:
+    linear-gradient(rgba(56, 181, 255, 0.14), rgba(56, 181, 255, 0.14)) padding-box,
+    var(--vibe-gradient) border-box;
+}
+
+/*
+ * Danger Zone "Deactivate Account" button: Astryx's Button has no built-in warning
+ * variant (only primary/secondary/ghost/destructive), so a solid amber fill is
+ * layered onto the secondary variant here — same wrapper-class technique as
+ * .vibe-cta above — to read as "caution" next to the native red "destructive"
+ * Delete Account button beside it.
+ */
+.vibe-cta-warning .astryx-button[data-variant="secondary"] {
+  background: #f59e0b;
+  border-color: transparent;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.28);
+}
+.vibe-cta-warning .astryx-button[data-variant="secondary"]:hover {
+  filter: brightness(1.05);
+}
+
+/* ─── Auth pages (login / register) ─────────────────────────────────────── */
+
+/* Stacked CTAs on the auth forms fill the column width. Scoped so the landing
+   page's side-by-side CTAs are unaffected. */
+.vibe-cta--stack .astryx-button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* "Continue with Google" — neutral outline button matching the input chrome. */
+.vibe-google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-element);
+  background: #ffffff;
+  color: #1f2937;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.vibe-google-btn:hover {
+  background: #f8fafc;
+  border-color: #22c9e6;
+}
+.dark .vibe-google-btn {
+  background: #111827; /* gray-900 */
+  color: #f3f4f6;
+}
+.dark .vibe-google-btn:hover {
+  background: #1f2937; /* gray-800 */
+  border-color: #22c9e6;
+}
+.vibe-google-btn__icon {
+  flex-shrink: 0;
+}
+
+/* Brand-tinted inline link. */
+.vibe-link {
+  color: #0284c7;
+  font-weight: 600;
+  text-decoration: none;
+}
+.dark .vibe-link {
+  color: #38bdf8; /* lighter for contrast on dark */
+}
+.vibe-link:hover {
+  text-decoration: underline;
+}
+
+.vibe-auth-footer {
+  padding-top: 2px;
+}
+
+/* ─── Dashboard ──────────────────────────────────────────────────────────── */
+
+/*
+ * Message bubble entrance — plays once when a bubble first mounts (new message
+ * sent or received). Keyed list items keep their DOM across re-renders, so a
+ * tick status change never re-triggers it. Honours reduced-motion.
+ */
+@keyframes vibe-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.vibe-msg-in {
+  animation: vibe-msg-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vibe-msg-in {
+    animation: none;
+  }
+}
+
+/* Empty-state panel shown before any conversations exist. */
+.vibe-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 56px 24px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-element);
+  background:
+    radial-gradient(600px 200px at 50% 0%, rgba(56, 181, 255, 0.06), transparent 70%),
+    rgba(255, 255, 255, 0.4);
+  transition: background 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+.dark .vibe-empty {
+  background:
+    radial-gradient(600px 200px at 50% 0%, rgba(56, 181, 255, 0.08), transparent 70%),
+    rgba(17, 24, 39, 0.4);
+}
+
+/* ─── Settings ───────────────────────────────────────────────────────────── */
+
+/*
+ * Layout only. Every colour in the settings panel is now a Tailwind `dark:` pair on the
+ * element itself, and the Astryx components inside follow `color-scheme` — so the
+ * hand-authored dark token layer that used to live here is gone.
+ */
+.vibe-settings {
+  /* Fills the dashboard's content pane (it is rendered inside AppShell, not on a route
+   * of its own). Scrolling belongs to the content column inside, not here — otherwise
+   * the nav rail would scroll away with it. */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Global footer. */
+.vibe-footer {
+  margin-top: auto; /* pin to the bottom when page content is short */
+  border-top: 1px solid var(--color-border);
+  padding: 20px 24px;
+}
+.vibe-footer__inner {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}

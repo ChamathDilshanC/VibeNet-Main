@@ -1,0 +1,111 @@
+// VibeNet — emoji picker popover for the message composer.
+//
+// A curated, static emoji set grouped into categories (no network fetch, no
+// emoji-data package — just characters, so it costs nothing to bundle or
+// load). Rendered inside Astryx's Popover, which owns the open/close
+// lifecycle, light dismiss, and focus trapping; this component is just the
+// grid + category sections.
+
+'use client';
+
+const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
+  {
+    label: 'Smileys & Emotion',
+    emojis: [
+      '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+      '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
+      '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+      '😐', '😑', '😶', '🙄', '😏', '😣', '😥', '😮', '🤐', '😯',
+      '😪', '😫', '🥱', '😴', '😌', '😛', '😷', '🤒', '🤕', '🤢',
+      '🥵', '🥶', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕',
+      '😟', '🙁', '😮‍💨', '😲', '😳', '🥺', '😦', '😧', '😨', '😰',
+      '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😤',
+      '😡', '😠', '🤬', '😈', '👿', '💀', '💩', '🤡', '👹', '👻',
+    ],
+  },
+  {
+    label: 'Gestures & People',
+    emojis: [
+      '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞',
+      '🤟', '🤘', '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌',
+      '👐', '🤲', '🙏', '✍️', '💪', '🦾', '🫡', '🤝', '👆', '👇',
+      '👈', '👉', '🖕', '☝️', '🫵', '👀', '🧑', '👶', '🧒', '👦',
+      '👧', '🧑‍🦱', '🧑‍🦰', '🧓', '👴', '👵', '🙋', '🙋‍♂️', '🙋‍♀️', '🤷',
+    ],
+  },
+  {
+    label: 'Hearts',
+    emojis: [
+      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+      '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '♥️',
+    ],
+  },
+  {
+    label: 'Animals & Nature',
+    emojis: [
+      '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+      '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆',
+      '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌',
+      '🐞', '🐜', '🕷️', '🐢', '🐍', '🦖', '🐙', '🐠', '🐬', '🐳',
+      '🌸', '🌼', '🌻', '🌹', '🌳', '🌵', '🍀', '🌈', '☀️', '⭐',
+      '🌙', '☁️', '⚡', '🔥', '💧', '❄️',
+    ],
+  },
+  {
+    label: 'Food & Drink',
+    emojis: [
+      '🍏', '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍒',
+      '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥔', '🥕',
+      '🌽', '🌶️', '🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🍜',
+      '🍣', '🍤', '🍩', '🍪', '🎂', '🍰', '🧁', '🍫', '🍿', '🍭',
+      '☕', '🍵', '🧃', '🥤', '🍺', '🍷', '🥂',
+    ],
+  },
+  {
+    label: 'Activities & Objects',
+    emojis: [
+      '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏓', '🎯', '🎮', '🎲',
+      '🎸', '🎧', '🎤', '🎬', '📷', '💻', '📱', '⌚', '🔋', '💡',
+      '🔦', '📚', '✏️', '📝', '📌', '📎', '🔒', '🔑', '🎁', '🎈',
+      '🎉', '🎊', '🏆', '🥇', '✈️', '🚗', '🚀', '⛵', '🏠', '🌍',
+    ],
+  },
+  {
+    label: 'Symbols',
+    emojis: [
+      '✅', '❌', '❗', '❓', '‼️', '⁉️', '💯', '🔴', '🟠', '🟡',
+      '🟢', '🔵', '🟣', '⚪', '⚫', '🔺', '🔻', '⭐', '✨', '💤',
+      '👑', '🏳️', '🏁', '🔞', '♻️', '➕', '➖', '➗', '✖️', '💲',
+    ],
+  },
+];
+
+export function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void }) {
+  return (
+    <div
+      role="menu"
+      aria-label="Emoji picker"
+      className="flex max-h-80 w-72 flex-col gap-3 overflow-y-auto p-1 sm:w-80">
+      {EMOJI_CATEGORIES.map((category) => (
+        <div key={category.label}>
+          <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            {category.label}
+          </p>
+          <div className="grid grid-cols-8 gap-0.5">
+            {category.emojis.map((emoji, i) => (
+              <button
+                key={`${emoji}-${i}`}
+                type="button"
+                role="menuitem"
+                aria-label={emoji}
+                onClick={() => onSelect(emoji)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-xl leading-none transition-colors hover:bg-black/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vibe-blue)] dark:hover:bg-white/10">
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
