@@ -52,12 +52,12 @@ page for the product story, simple auth screens, and a distraction-free workspac
 you sign in.
 
 <p align="center">
-  <img src="docs/screenshots/landing.png" alt="VibeNet landing page" width="880" />
+  <img src="docs/screenshots/landing-cropped.png" alt="VibeNet landing page" width="880" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/login.png" alt="VibeNet login screen" width="420" />
-  <img src="docs/screenshots/register.png" alt="VibeNet registration screen" width="420" />
+  <img src="docs/screenshots/login-cropped.png" alt="VibeNet login screen" width="420" />
+  <img src="docs/screenshots/register-cropped.png" alt="VibeNet registration screen" width="420" />
 </p>
 
 <p align="center">
