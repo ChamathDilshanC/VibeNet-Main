@@ -60,6 +60,19 @@ you sign in.
   <img src="docs/screenshots/register.png" alt="VibeNet registration screen" width="420" />
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/settings-security.png" alt="VibeNet privacy and security settings" width="880" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/settings-appearance-light.png" alt="VibeNet light appearance settings" width="420" />
+  <img src="docs/screenshots/settings-appearance-dark.png" alt="VibeNet dark appearance settings" width="420" />
+</p>
+
+The authenticated workspace screenshots above cover the redesigned Privacy & Security
+and Appearance tabs, including the plain settings surfaces, BounceSidebar navigation,
+PIN controls, theme selection, and near-black dark mode.
+
 ### Release highlights
 
 - **Redesigned settings workspace** — plain, spacious settings surfaces with restrained
