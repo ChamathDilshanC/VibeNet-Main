@@ -45,6 +45,34 @@ Both submodules are deployed and live: the frontend on **Vercel** at [vibe-net-f
 | **Identity & security** | Email/password + Google OAuth 2.0 sign-in, per-account ECDH keypair generated client-side, anti-spam rotating 4-digit PIN gating strangers' first DM, avatar upload, account deactivation & deletion |
 | **Presence** | Online/last-seen status, live connection-state indicator with auto-reconnect, dark/light theming |
 
+## 🖥️ Product Screenshots
+
+The current VibeNet client keeps the interface focused and quiet: a cinematic landing
+page for the product story, simple auth screens, and a distraction-free workspace once
+you sign in.
+
+<p align="center">
+  <img src="docs/screenshots/landing.png" alt="VibeNet landing page" width="880" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/login.png" alt="VibeNet login screen" width="420" />
+  <img src="docs/screenshots/register.png" alt="VibeNet registration screen" width="420" />
+</p>
+
+### Release highlights
+
+- **Redesigned settings workspace** — plain, spacious settings surfaces with restrained
+  borders instead of heavy cards and shadows.
+- **Neutral dark mode** — the dark experience uses the existing near-black palette,
+  keeping the interface calm and readable without an all-blue treatment.
+- **Animated settings navigation** — Rare UI's BounceSidebar gives section changes a
+  small spring motion while preserving profile, security, appearance, and logout flows.
+- **Secure PIN input** — Rare UI's OTP input powers numeric filtering, paste support,
+  masking, auto-advance, completion callbacks, and verification error feedback.
+- **Client-side encryption** — account keys are generated in the browser and plaintext
+  messages never pass through the backend.
+
 ---
 
 ## 🏗 Ecosystem Architecture & Visualizations
